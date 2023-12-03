@@ -27,6 +27,9 @@ roslaunch shutter_bringup shutter_with_face.launch
 # start kinect body tracking
 roslaunch azure_kinect_ros_driver driver_with_bodytracking.launch
 
+# start realsense camera
+roslaunch realsense2_camera rs_camera.launch
+
 # send service request for manually starting the JointGroupPositionController
 rosservice call /controller_manager/switch_controller "start_controllers: [joint_group_controller]
 strictness: 1"
