@@ -13,6 +13,8 @@ WRIST_RIGHT = 14
 SMALL_DELTA = 0.02
 BIG_DELTA = 0.1
 NEUTRAL = [0.0, 0.0, 0.0, 0.0]
+JOINT1_CONSTRAINT = [-1.5, 1.5]
+JOINT3_CONSTRAINT = [-0.7, 1.2]
 
 
 class ControlNode():
@@ -66,8 +68,14 @@ class ControlNode():
             new_joint_vertical = joint_vertical + delta_y
             new_joint_horizontal = joint_horizontal + delta_x
 
+            new_joint_vertical = JOINT3_CONSTRAINT[0] if new_joint_vertical < JOINT3_CONSTRAINT[0] else new_joint_vertical
+            new_joint_vertical = JOINT3_CONSTRAINT[1] if new_joint_vertical > JOINT1_CONSTRAINT[1] else new_joint_vertical
+            new_joint_horizontal = JOINT1_CONSTRAINT[0] if new_joint_horizontal < JOINT1_CONSTRAINT[0] else new_joint_horizontal
+            new_joint_horizontal = JOINT1_CONSTRAINT[1] if new_joint_horizontal > JOINT1_CONSTRAINT[1] else new_joint_horizontal
+
             new_msg = Float64MultiArray()
             new_msg.data = [new_joint_horizontal, 0.0, new_joint_vertical, 0.0]
+            print(new_msg.data)
             self.joints_pub.publish(new_msg)
 
 
