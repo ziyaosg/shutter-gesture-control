@@ -12,6 +12,8 @@ ELBOW_RIGHT = 13
 WRIST_RIGHT = 14
 SMALL_DELTA = 0.02
 BIG_DELTA = 0.1
+RELATIVITY_VERTICAL_THRESHOLD = 0.1
+RELATIVITY_HORIZONTAL_THRESHOLD = 0.15
 NEUTRAL = [0.0, 0.0, 0.0, 0.0]
 JOINT1_CONSTRAINT = [-1.5, 1.5]
 JOINT3_CONSTRAINT = [-0.7, 1.2]
@@ -59,8 +61,13 @@ class ControlNode():
         if msg.markers:
             relativity_horizontal = msg.markers[ELBOW_LEFT].pose.position.x - msg.markers[WRIST_LEFT].pose.position.x
             relativity_vertical = msg.markers[ELBOW_LEFT].pose.position.y - msg.markers[WRIST_LEFT].pose.position.y
-            delta_x = SMALL_DELTA if relativity_horizontal > 0 else -SMALL_DELTA
-            delta_y = BIG_DELTA if relativity_vertical > 0 else -SMALL_DELTA
+            
+            if abs(relativity_horizontal) >= RELATIVITY_HORIZONTAL_THRESHOLD:
+                delta_x = SMALL_DELTA if relativity_horizontal > 0 else -SMALL_DELTA
+            if abs(relativity_vertical) >= RELATIVITY_VERTICAL_THRESHOLD:
+                delta_y = BIG_DELTA if relativity_vertical > 0 else -SMALL_DELTA
+            else:
+                delta_y = SMALL_DELTA
 
         if self.current_pose != NEUTRAL:
             joint_horizontal = self.current_pose[0]
@@ -73,9 +80,10 @@ class ControlNode():
             new_joint_horizontal = JOINT1_CONSTRAINT[0] if new_joint_horizontal < JOINT1_CONSTRAINT[0] else new_joint_horizontal
             new_joint_horizontal = JOINT1_CONSTRAINT[1] if new_joint_horizontal > JOINT1_CONSTRAINT[1] else new_joint_horizontal
 
+            # TODO: control joint 4 to fine tune camera angle with right arm
+
             new_msg = Float64MultiArray()
             new_msg.data = [new_joint_horizontal, 0.0, new_joint_vertical, 0.0]
-            print(new_msg.data)
             self.joints_pub.publish(new_msg)
 
 
