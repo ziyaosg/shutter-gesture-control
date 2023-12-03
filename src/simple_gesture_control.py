@@ -13,12 +13,9 @@ ELBOW_RIGHT = 13
 WRIST_RIGHT = 14
 
 
-class TestNode():
+class ControlNode():
     def __init__(self):
-        rospy.init_node('test')
-
-        # publish rate
-        publish_rate = 1 # Hz
+        rospy.init_node('control')
 
         # data
         self.current_pose = [0.0, 0.0, 0.0, 0.0]
@@ -33,38 +30,35 @@ class TestNode():
         self.joints_sub = rospy.Subscriber("/joint_states", JointState, self.joints_callback, queue_size=5)
         self.body_sub = rospy.Subscriber(self.body_tracking_topic, MarkerArray, self.body_callback, queue_size=5)
 
-        rate = rospy.Rate(publish_rate)
-
         rospy.spin()
         
 
     def joints_callback(self, msg):
         try:
-            self.current_pose = [msg.position[0], msg.position[1], msg.position[2], msg.position[3]]
+            self.current_pose = [msg.position[0], 
+                                 msg.position[1], 
+                                 msg.position[2], 
+                                 msg.position[3]]
         except:
-            print("joints position update failed.")
+            print("Joints position update failed.")
             
 
     def body_callback(self, msg):
-        # facing shutter, for both body joint relativity and shutter joint control
-        # left: -; right: +; 
-        # up: +; down: -
+        '''
+        when facing shutter, for both body joint relativity and shutter joint control
+        left: -; right: +; 
+        up: +; down: -
+        '''
 
         delta_x = 0
         delta_y = 0
-        delta = 0.05
+        small_delta = 0.02
+        big_delta = 0.1
         if msg.markers:
             relativity_horizontal = msg.markers[ELBOW_LEFT].pose.position.x - msg.markers[WRIST_LEFT].pose.position.x
             relativity_vertical = msg.markers[ELBOW_LEFT].pose.position.y - msg.markers[WRIST_LEFT].pose.position.y
-            if relativity_horizontal > 0:
-                delta_x = delta
-            else:
-                delta_x = -delta
-
-            if relativity_vertical > 0:
-                delta_y = delta
-            else:
-                delta_y = -delta
+            delta_x = small_delta if relativity_horizontal > 0 else -small_delta
+            delta_y = big_delta if relativity_vertical > 0 else -small_delta
 
         if self.current_pose != [0.0, 0.0, 0.0, 0.0]:
             joint_horizontal = self.current_pose[0]
@@ -79,7 +73,7 @@ class TestNode():
 
 if __name__ == '__main__':
     try:
-        node = TestNode()
+        node = ControlNode()
     except rospy.ROSInterruptException:
         pass
 
