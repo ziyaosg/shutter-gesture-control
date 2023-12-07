@@ -10,6 +10,7 @@ from visualization_msgs.msg import MarkerArray
 from cv_bridge import CvBridge, CvBridgeError
 from Sign_Language_Detection.wrapper import gesture_recognition
 import Sign_Language_Detection.HandTrackingModule as htm
+import math
 
 
 NUM_JOINTS = 32
@@ -137,6 +138,8 @@ class ControlNode():
         new_joint_vertical_right = JOINT4_CONSTRAINT[0] if new_joint_vertical_right < JOINT4_CONSTRAINT[0] else new_joint_vertical_right
         new_joint_vertical_right = JOINT4_CONSTRAINT[1] if new_joint_vertical_right > JOINT4_CONSTRAINT[1] else new_joint_vertical_right
 
+        # TODO: control joint 4 to fine tune camera angle with right arm
+
         new_msg = Float64MultiArray()
         new_msg.data = [new_joint_horizontal, 0.0, new_joint_vertical, new_joint_vertical_right]
         # new_msg.data = [0.0, 0.0, 0.0, new_joint_vertical_right]
@@ -150,8 +153,7 @@ class ControlNode():
         # photo taking with gesture recognition
         bridge = CvBridge()
         cv_image = bridge.imgmsg_to_cv2(self.img_msg, "bgr8")
-        cv2.imshow('Camera', cv_image)
-        cv2.waitKey(1)
+        
         if self.start_photo == False:
             cv_image = self.detector.findHands(cv_image)
             posList = self.detector.findPosition(cv_image, draw=False)
@@ -165,6 +167,13 @@ class ControlNode():
                 print('Five Second Count Down Begin!!!')
         
         current_time = time.time()
+
+        if self.start_photo == True:
+            count_down = 5 - math.floor(current_time - self.init_time)
+            text_display = '{} Second before taking the photo'.format(str(count_down))
+            cv2.putText(cv_image, text_display, (100, 60), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
+
+        
         
         if self.start_photo == True:
             if (current_time - self.init_time > FIVE_SECONDS):
@@ -178,8 +187,15 @@ class ControlNode():
                     self.photo_taken = True
                     self.start_photo = False
                     print("Photo taken!")
+                    text_display = "Photo taken!"
+                    cv2.putText(cv_image, text_display, (100, 60), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
                 except CvBridgeError as e:
                     print(e)
+        
+        cv2.imshow('Camera', cv_image)
+        cv2.waitKey(1)
+        
+        
 
     def image_callback(self, msg):
         if not msg:
