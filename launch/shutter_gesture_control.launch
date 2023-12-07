@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<launch>
+
+    <!-- shutter bringup params -->
+    <arg name="simulation" default="false"/>
+    <arg name="display_id" default=":1011" />
+    <arg name="robot_version" default="2.0"/>
+    <arg name="run_robot_state_publisher" default="true"/>
+    <arg name="driver_device" default="ttyUSB0"/>
+    <arg name="run_rosbridge" default="false"/>
+
+    <!-- shutter face params -->
+    <arg name="blink" default="true"/>
+    <arg name="limit_pupils" default="true"/>
+    <arg name="move_to_shutter_screen" default="true"/>
+    <arg unless="$(eval robot_version >= 4.0)" name="screen_version" value="v1" />
+    <arg     if="$(eval robot_version >= 4.0)" name="screen_version" value="v2" />
+
+    <include file="$(find shutter_bringup)/launch/shutter.launch">
+        <arg name="simulation" value="$(arg simulation)"/>
+        <arg name="robot_version" value="$(arg robot_version)"/>
+        <arg name="run_robot_state_publisher" value="$(arg run_robot_state_publisher)"/>
+        <arg name="driver_device" value="$(arg driver_device)"/>
+        <arg name="run_rosbridge" value="$(arg run_rosbridge)"/>
+    </include>
+
+    <include file="$(find shutter_face_ros)/launch/simple_face.launch">
+        <arg name="blink" value="$(arg blink)"/>
+        <arg name="limit_pupils" value="$(arg limit_pupils)"/>
+        <arg name="move_to_shutter_screen" value="$(arg move_to_shutter_screen)"/>
+        <arg name="screen_version" value="$(arg screen_version)"/>
+        <arg name="simulation" value="$(arg simulation)"/>
+        <arg name="display_id" value="$(arg display_id)"/>
+    </include>
+
+    <!-- Include azure_kinect_ros_driver launch file with a unique namespace -->
+    <group ns="azure_kinect">
+        <include file="$(find azure_kinect_ros_driver)/launch/driver.launch">
+            <arg name="body_tracking_enabled" value="true" />
+        </include>
+    </group>
+
+    
+    <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+        <!-- Add any required arguments here if needed -->
+    </include>
+
+    
+
+</launch>
