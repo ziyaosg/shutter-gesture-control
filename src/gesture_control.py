@@ -28,6 +28,7 @@ RELATIVITY_HORIZONTAL_THRESHOLD = 0.15
 NEUTRAL = [0.0, 0.0, 0.0, 0.0]
 JOINT1_CONSTRAINT = [-1.5, 1.5]
 JOINT3_CONSTRAINT = [-0.7, 1.2]
+JOINT4_CONSTRAINT = [-0.5, 0.8]
 FIVE_SECONDS = 5
 
 
@@ -59,6 +60,7 @@ class ControlNode():
         # gesture module
         self.detector = htm.handDetector(detectionCon = 0)
 
+        rospy.Rate(10)
         rospy.spin()
         
 
@@ -85,6 +87,7 @@ class ControlNode():
         # shutter control with body tracking
         delta_x = 0
         delta_y = 0
+        delta_y_right = 0
         if msg.markers:
             
             # find closest person
@@ -104,6 +107,9 @@ class ControlNode():
             wrist_left = WRIST_LEFT + offset
             relativity_horizontal = msg.markers[elbow_left].pose.position.x - msg.markers[wrist_left].pose.position.x
             relativity_vertical = msg.markers[elbow_left].pose.position.y - msg.markers[wrist_left].pose.position.y
+            elbow_right = ELBOW_RIGHT + offset
+            wrist_right = WRIST_RIGHT + offset
+            relativity_vertical_right = msg.markers[elbow_right].pose.position.y - msg.markers[wrist_right].pose.position.y
             
             # shutter only starts moving if joints relativity exceeds a certain threshold
             if abs(relativity_horizontal) >= RELATIVITY_HORIZONTAL_THRESHOLD:
@@ -112,22 +118,28 @@ class ControlNode():
                 delta_y = BIG_DELTA if relativity_vertical > 0 else -SMALL_DELTA
             else:
                 delta_y = SMALL_DELTA
+            if abs(relativity_vertical_right) >= RELATIVITY_VERTICAL_THRESHOLD:
+                delta_y_right = BIG_DELTA if relativity_vertical_right > 0 else -SMALL_DELTA
 
         # if self.current_pose != NEUTRAL:
         joint_horizontal = self.current_pose[0]
         joint_vertical = self.current_pose[2]
+        joint_vertical_right = self.current_pose[3]
+
         new_joint_vertical = joint_vertical + delta_y
         new_joint_horizontal = joint_horizontal + delta_x
+        new_joint_vertical_right = joint_vertical_right + delta_y_right
 
         new_joint_vertical = JOINT3_CONSTRAINT[0] if new_joint_vertical < JOINT3_CONSTRAINT[0] else new_joint_vertical
         new_joint_vertical = JOINT3_CONSTRAINT[1] if new_joint_vertical > JOINT1_CONSTRAINT[1] else new_joint_vertical
         new_joint_horizontal = JOINT1_CONSTRAINT[0] if new_joint_horizontal < JOINT1_CONSTRAINT[0] else new_joint_horizontal
         new_joint_horizontal = JOINT1_CONSTRAINT[1] if new_joint_horizontal > JOINT1_CONSTRAINT[1] else new_joint_horizontal
-
-        # TODO: control joint 4 to fine tune camera angle with right arm
+        new_joint_vertical_right = JOINT4_CONSTRAINT[0] if new_joint_vertical_right < JOINT4_CONSTRAINT[0] else new_joint_vertical_right
+        new_joint_vertical_right = JOINT4_CONSTRAINT[1] if new_joint_vertical_right > JOINT4_CONSTRAINT[1] else new_joint_vertical_right
 
         new_msg = Float64MultiArray()
-        new_msg.data = [new_joint_horizontal, 0.0, new_joint_vertical, 0.0]
+        new_msg.data = [new_joint_horizontal, 0.0, new_joint_vertical, new_joint_vertical_right]
+        # new_msg.data = [0.0, 0.0, 0.0, new_joint_vertical_right]
 
         if not self.start_photo:
             self.joints_pub.publish(new_msg)
