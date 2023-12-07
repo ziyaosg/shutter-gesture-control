@@ -37,6 +37,7 @@
     <group ns="azure_kinect">
         <include file="$(find azure_kinect_ros_driver)/launch/driver.launch">
             <arg name="body_tracking_enabled" value="true" />
+            <arg name="overwrite_robot_description" value="false" />
         </include>
     </group>
 
