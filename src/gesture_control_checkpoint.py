@@ -11,10 +11,6 @@ from cv_bridge import CvBridge, CvBridgeError
 from Sign_Language_Detection.wrapper import gesture_recognition
 import Sign_Language_Detection.HandTrackingModule as htm
 import math
-import mediapipe as mp
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
-import numpy as np
 
 
 NUM_JOINTS = 32
@@ -65,23 +61,6 @@ class ControlNode():
         # gesture module
         self.detector = htm.handDetector(detectionCon = 0)
 
-        # gesture google
-        base_options = python.BaseOptions(model_asset_path='/home/app/catkin_ws/src/shutter-gesture-control/src/gesture_recognizer.task')
-
-        self.options = vision.GestureRecognizerOptions(base_options=base_options)
-        self.options.min_hand_detection_confidence = 0.1
-        self.options.min_hand_presence_confidence = 0.1
-        self.options.min_tracking_confidence = 0.1
-        self.google_recognizer = vision.GestureRecognizer.create_from_options(self.options)
-        self.move = False
-
-        # variable to store the text and the time to display
-        self.display_text = ''
-        self.display_longer = False
-        self.display_until = None
-        self.ready = True
-        self.program_started = False
-
         rospy.Rate(10)
         rospy.spin()
         
@@ -92,7 +71,6 @@ class ControlNode():
                                  msg.position[1], 
                                  msg.position[2], 
                                  msg.position[3]]
-
         except:
             print("Joints position update failed.")
 
@@ -103,41 +81,11 @@ class ControlNode():
         left: -; right: +; 
         up: +; down: -
         '''
-        # photo taking with gesture recognition
-        bridge = CvBridge()
-        cv_image = bridge.imgmsg_to_cv2(self.img_msg, "bgr8")
-        cv_image = cv2.flip(cv_image, 1) 
-        brightness = 0
-        # Adjusts the contrast by scaling the pixel values by 2.3 
-        contrast = 1
-        cv_image = cv2.addWeighted(cv_image, contrast, np.zeros(cv_image.shape, cv_image.dtype), 0, brightness) 
-
-        #  use google code
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=cv_image)
-        
-        recognition_result = self.google_recognizer.recognize(mp_image)
-        
-        if len(recognition_result.gestures) != 0:
-            gesture = recognition_result.gestures[0][0]
-            result = gesture.category_name
-            
-
-            if result == 'Open_Palm':
-                self.move = False
-        else:
-            result = None
-        
-        google_result = result
-        
-        status = 'Shutter is Moving' if self.move == True else 'Shutter is Idle'
-        cv2.putText(cv_image, status, (800, 80), cv2.FONT_HERSHEY_DUPLEX, 1.5, (0, 0, 0), 4)
-
         if not msg:
             print("Body tracking message emtpy.")
             return
-        
 
-        # shutter control with body tracking'Five Second Count Down Begin!!!'
+        # shutter control with body tracking
         delta_x = 0
         delta_y = 0
         delta_y_right = 0
@@ -171,9 +119,8 @@ class ControlNode():
                 delta_y = BIG_DELTA if relativity_vertical > 0 else -SMALL_DELTA
             else:
                 delta_y = SMALL_DELTA
-            
             if abs(relativity_vertical_right) >= RELATIVITY_VERTICAL_THRESHOLD:
-                delta_y_right = MID_DELTA if relativity_vertical_right > 0 else -MID_DELTA
+                delta_y_right = BIG_DELTA if relativity_vertical_right > 0 else -SMALL_DELTA
 
         # if self.current_pose != NEUTRAL:
         joint_horizontal = self.current_pose[0]
@@ -195,57 +142,38 @@ class ControlNode():
 
         new_msg = Float64MultiArray()
         new_msg.data = [new_joint_horizontal, 0.0, new_joint_vertical, new_joint_vertical_right]
-
-        # new_msg.data = [0.0, 0.0, 0.2, 0.0]
         # new_msg.data = [0.0, 0.0, 0.0, new_joint_vertical_right]
 
-        if not self.start_photo and self.move:
+        if not self.start_photo:
             self.joints_pub.publish(new_msg)
         
         if not msg.markers:
             return
 
+        # photo taking with gesture recognition
+        bridge = CvBridge()
+        cv_image = bridge.imgmsg_to_cv2(self.img_msg, "bgr8")
         
         if self.start_photo == False:
             cv_image = self.detector.findHands(cv_image)
             posList = self.detector.findPosition(cv_image, draw=False)
             if len(posList) != 0:
                 result = gesture_recognition(posList=posList)
-            elif (result == 'O' or  result == 'A' or result == 'S') and google_result != 'Open_Palm':
-                self.move = True
-                result = None
-            # cv2.putText(cv_image, str(result), (100, 80), cv2.FONT_HERSHEY_DUPLEX, 1.5, (0, 0, 0), 2)
-
-            if (result == 'F') and self.start_photo == False:
-                if self.ready: 
-                    # self.init_time = time.time()
-                    self.start_photo = True
-                    print('Five Second Count Down Begin!!!')
-                    self.display_longer = True
-                    self.ready = False
-                    self.display_until = time.time() + 1.5
-                    # text_display = "Let's take a Photo! 5 Seconds Countdown Begins!"
-                    # cv2.putText(cv_image, text_display, (60, 600), cv2.FONT_HERSHEY_DUPLEX, 1.6, (255, 255, 255), 4)
-            
-            if (result == 'O' or  result == 'A' or result == 'S') and google_result != 'Open_Palm':
-                self.move = True
-
-        if self.display_longer:
-            self.init_time = time.time()
-            if time.time() < self.display_until:
-                text_display = "Let's take a Photo! 5 Secs Countdown Begins!"
-                cv2.putText(cv_image, text_display, (50, 550), cv2.FONT_HERSHEY_DUPLEX, 1.5, (255, 255, 255), 4)
             else:
-                self.display_until = None
-                self.display_longer = False
+                result = None
+            if (result == 'F') and self.start_photo == False:
+                self.init_time = time.time()
+                self.start_photo = True
+                print('Five Second Count Down Begin!!!')
         
         current_time = time.time()
 
         if self.start_photo == True:
-            if current_time - self.init_time > 0:
-                count_down = 5 - math.floor(current_time - self.init_time)
-                text_display = '{} Second(s) before taking the photo'.format(str(count_down))
-                cv2.putText(cv_image, text_display, (50, 650), cv2.FONT_HERSHEY_DUPLEX, 1.5, (255, 255, 255), 4)
+            count_down = 5 - math.floor(current_time - self.init_time)
+            text_display = '{} Second before taking the photo'.format(str(count_down))
+            cv2.putText(cv_image, text_display, (100, 60), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
+
+        
         
         if self.start_photo == True:
             if (current_time - self.init_time > FIVE_SECONDS):
@@ -253,19 +181,16 @@ class ControlNode():
                 bridge = CvBridge()
                 try:
                     cv_image = bridge.imgmsg_to_cv2(self.img_msg, "bgr8")
-                    cv_image = cv2.flip(cv_image, 1) 
+
                     filename = 'shutter_photo_{}.jpeg'.format(time.strftime("%Y%m%d-%H%M%S"))
                     cv2.imwrite(filename, cv_image)
-                    self.phocv_image = cv2.flip(cv_image, 1)
+                    self.photo_taken = True
                     self.start_photo = False
                     print("Photo taken!")
                     text_display = "Photo taken!"
-                    cv2.putText(cv_image, text_display, (50, 650), cv2.FONT_HERSHEY_DUPLEX, 1.5, (255, 255, 255), 4)
-
-                    self.ready = True
+                    cv2.putText(cv_image, text_display, (100, 60), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
                 except CvBridgeError as e:
                     print(e)
-        
         
         cv2.imshow('Camera', cv_image)
         cv2.waitKey(1)
