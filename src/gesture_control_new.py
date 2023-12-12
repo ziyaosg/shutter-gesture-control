@@ -122,8 +122,10 @@ class ControlNode():
         
         google_result = result
         
-        status = 'Shutter is moving' if self.move == True else 'Shutter is idle'
-        cv2.putText(cv_image, status, (100, 60), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
+        # status = 'Shutter is moving' if self.move == True else 'Shutter is idle'
+        # cv2.putText(cv_image, status, (100, 60), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
+        status = 'Shutter is Moving' if self.move == True else 'Shutter is Idle'
+        cv2.putText(cv_image, status, (800, 80), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 4)
 
         if not msg:
             print("Body tracking message emtpy.")
@@ -203,9 +205,10 @@ class ControlNode():
             posList = self.detector.findPosition(cv_image, draw=False)
             if len(posList) != 0:
                 result = gesture_recognition(posList=posList)
-            else:
+            elif (result == 'O' or  result == 'A' or result == 'S') and google_result != 'Open_Palm':
+                self.move = True
                 result = None
-            cv2.putText(cv_image, str(result), (200, 80), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
+            cv2.putText(cv_image, str(result), (100, 80), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
             if (result == 'F') and self.start_photo == False:
                 self.init_time = time.time()
                 self.start_photo = True
@@ -219,7 +222,8 @@ class ControlNode():
         if self.start_photo == True:
             count_down = 5 - math.floor(current_time - self.init_time)
             text_display = '{} Second before taking the photo'.format(str(count_down))
-            cv2.putText(cv_image, text_display, (100, 100), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
+            # cv2.putText(cv_image, text_display, (100, 100), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
+            cv2.putText(cv_image, text_display, (80, 600), cv2.FONT_HERSHEY_DUPLEX, 1.6, (255, 255, 255), 4)
 
         
         
@@ -236,7 +240,8 @@ class ControlNode():
                     self.start_photo = False
                     print("Photo taken!")
                     text_display = "Photo taken!"
-                    cv2.putText(cv_image, text_display, (100, 60), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
+                    # cv2.putText(cv_image, text_display, (100, 60), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
+                    cv2.putText(cv_image, text_display, (80, 600), cv2.FONT_HERSHEY_DUPLEX, 1.6, (255, 255, 255), 4)
                 except CvBridgeError as e:
                     print(e)
         
