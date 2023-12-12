@@ -74,7 +74,13 @@ class ControlNode():
         self.options.min_tracking_confidence = 0.1
         self.google_recognizer = vision.GestureRecognizer.create_from_options(self.options)
         self.move = False
-        
+
+        # variable to store the text and the time to display
+        self.display_text = ''
+        self.display_longer = False
+        self.display_until = None
+        self.ready = True
+        self.program_started = False
 
         rospy.Rate(10)
         rospy.spin()
@@ -86,6 +92,7 @@ class ControlNode():
                                  msg.position[1], 
                                  msg.position[2], 
                                  msg.position[3]]
+
         except:
             print("Joints position update failed.")
 
@@ -122,17 +129,15 @@ class ControlNode():
         
         google_result = result
         
-        # status = 'Shutter is moving' if self.move == True else 'Shutter is idle'
-        # cv2.putText(cv_image, status, (100, 60), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
         status = 'Shutter is Moving' if self.move == True else 'Shutter is Idle'
-        cv2.putText(cv_image, status, (800, 80), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 4)
+        cv2.putText(cv_image, status, (800, 80), cv2.FONT_HERSHEY_DUPLEX, 1.5, (0, 0, 0), 4)
 
         if not msg:
             print("Body tracking message emtpy.")
             return
         
 
-        # shutter control with body tracking
+        # shutter control with body tracking'Five Second Count Down Begin!!!'
         delta_x = 0
         delta_y = 0
         delta_y_right = 0
@@ -190,7 +195,8 @@ class ControlNode():
 
         new_msg = Float64MultiArray()
         new_msg.data = [new_joint_horizontal, 0.0, new_joint_vertical, new_joint_vertical_right]
-        # new_msg.data = [0.0, 0.0, 0.0, 0.0]
+
+        # new_msg.data = [0.0, 0.0, 0.2, 0.0]
         # new_msg.data = [0.0, 0.0, 0.0, new_joint_vertical_right]
 
         if not self.start_photo and self.move:
@@ -208,24 +214,38 @@ class ControlNode():
             elif (result == 'O' or  result == 'A' or result == 'S') and google_result != 'Open_Palm':
                 self.move = True
                 result = None
-            cv2.putText(cv_image, str(result), (100, 80), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
+            # cv2.putText(cv_image, str(result), (100, 80), cv2.FONT_HERSHEY_DUPLEX, 1.5, (0, 0, 0), 2)
+
             if (result == 'F') and self.start_photo == False:
-                self.init_time = time.time()
-                self.start_photo = True
-                print('Five Second Count Down Begin!!!')
+                if self.ready: 
+                    # self.init_time = time.time()
+                    self.start_photo = True
+                    print('Five Second Count Down Begin!!!')
+                    self.display_longer = True
+                    self.ready = False
+                    self.display_until = time.time() + 1.5
+                    # text_display = "Let's take a Photo! 5 Seconds Countdown Begins!"
+                    # cv2.putText(cv_image, text_display, (60, 600), cv2.FONT_HERSHEY_DUPLEX, 1.6, (255, 255, 255), 4)
             
             if (result == 'O' or  result == 'A' or result == 'S') and google_result != 'Open_Palm':
                 self.move = True
+
+        if self.display_longer:
+            self.init_time = time.time()
+            if time.time() < self.display_until:
+                text_display = "Let's take a Photo! 5 Secs Countdown Begins!"
+                cv2.putText(cv_image, text_display, (50, 550), cv2.FONT_HERSHEY_DUPLEX, 1.5, (255, 255, 255), 4)
+            else:
+                self.display_until = None
+                self.display_longer = False
         
         current_time = time.time()
 
         if self.start_photo == True:
-            count_down = 5 - math.floor(current_time - self.init_time)
-            text_display = '{} Second before taking the photo'.format(str(count_down))
-            # cv2.putText(cv_image, text_display, (100, 100), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
-            cv2.putText(cv_image, text_display, (80, 600), cv2.FONT_HERSHEY_DUPLEX, 1.6, (255, 255, 255), 4)
-
-        
+            if current_time - self.init_time > 0:
+                count_down = 5 - math.floor(current_time - self.init_time)
+                text_display = '{} Second(s) before taking the photo'.format(str(count_down))
+                cv2.putText(cv_image, text_display, (50, 650), cv2.FONT_HERSHEY_DUPLEX, 1.5, (255, 255, 255), 4)
         
         if self.start_photo == True:
             if (current_time - self.init_time > FIVE_SECONDS):
@@ -240,8 +260,9 @@ class ControlNode():
                     self.start_photo = False
                     print("Photo taken!")
                     text_display = "Photo taken!"
-                    # cv2.putText(cv_image, text_display, (100, 60), cv2.FONT_HERSHEY_DUPLEX, 1.6, (0, 0, 0), 2)
-                    cv2.putText(cv_image, text_display, (80, 600), cv2.FONT_HERSHEY_DUPLEX, 1.6, (255, 255, 255), 4)
+                    cv2.putText(cv_image, text_display, (50, 650), cv2.FONT_HERSHEY_DUPLEX, 1.5, (255, 255, 255), 4)
+
+                    self.ready = True
                 except CvBridgeError as e:
                     print(e)
         
