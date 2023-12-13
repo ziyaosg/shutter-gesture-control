@@ -191,13 +191,8 @@ class ControlNode():
         new_joint_vertical_right = JOINT4_CONSTRAINT[0] if new_joint_vertical_right < JOINT4_CONSTRAINT[0] else new_joint_vertical_right
         new_joint_vertical_right = JOINT4_CONSTRAINT[1] if new_joint_vertical_right > JOINT4_CONSTRAINT[1] else new_joint_vertical_right
 
-        # TODO: control joint 4 to fine tune camera angle with right arm
-
         new_msg = Float64MultiArray()
         new_msg.data = [new_joint_horizontal, 0.0, new_joint_vertical, new_joint_vertical_right]
-
-        # new_msg.data = [0.0, 0.0, 0.2, 0.0]
-        # new_msg.data = [0.0, 0.0, 0.0, new_joint_vertical_right]
 
         if not self.start_photo and self.move:
             self.joints_pub.publish(new_msg)
