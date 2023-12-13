@@ -1,51 +1,76 @@
 <?xml version="1.0"?>
 <launch>
 
-    <!-- shutter bringup params -->
-    <arg name="simulation" default="false"/>
-    <arg name="display_id" default=":1011" />
-    <arg name="robot_version" default="2.0"/>
-    <arg name="run_robot_state_publisher" default="true"/>
-    <arg name="driver_device" default="ttyUSB0"/>
-    <arg name="run_rosbridge" default="false"/>
+  <!-- bring up camera-->
+  <!-- <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+  </include> -->
 
-    <!-- shutter face params -->
-    <arg name="blink" default="true"/>
-    <arg name="limit_pupils" default="true"/>
-    <arg name="move_to_shutter_screen" default="true"/>
-    <arg unless="$(eval robot_version >= 4.0)" name="screen_version" value="v1" />
-    <arg     if="$(eval robot_version >= 4.0)" name="screen_version" value="v2" />
+  <!-- bring up kinect-->
+  <include file="$(find azure_kinect_ros_driver)/launch/driver.launch">
+    <arg name="body_tracking_enabled" value="true" />
+    <arg name="overwrite_robot_description" value="false" />
+  </include>
 
-    <include file="$(find shutter_bringup)/launch/shutter.launch">
-        <arg name="simulation" value="$(arg simulation)"/>
-        <arg name="robot_version" value="$(arg robot_version)"/>
-        <arg name="run_robot_state_publisher" value="$(arg run_robot_state_publisher)"/>
-        <arg name="driver_device" value="$(arg driver_device)"/>
-        <arg name="run_rosbridge" value="$(arg run_rosbridge)"/>
+  <!---->
+  <!-- shutter bringup params -->
+  <arg name="simulation" default="false"/>
+  <arg name="display_id" default=":1011" />
+  <arg name="robot_version" default="2.0"/>
+  <arg name="run_robot_state_publisher" default="true"/>
+  <arg name="driver_device" default="ttyUSB0"/>
+  <arg name="run_rosbridge" default="false"/>
+
+  <!-- shutter face params -->
+  <arg name="blink" default="true"/>
+  <arg name="limit_pupils" default="true"/>
+  <arg name="move_to_shutter_screen" default="true"/>
+  <arg unless="$(eval robot_version >= 4.0)" name="screen_version" value="v1" />
+  <arg     if="$(eval robot_version >= 4.0)" name="screen_version" value="v2" />
+
+  <!-- headless: set to true when running Unity simulation without a display (e.g. for test suite) -->
+  <arg name="headless" default="false"/>
+  <param name="/headless" type="bool" value="$(arg headless)"/>
+
+  <!-- Load the robot model -->
+  <include file="$(find shutter_description)/launch/load_description.launch">
+    <arg name="robot_version" value="$(arg robot_version)"/>
+    <arg name="run_robot_state_publisher" value="$(arg run_robot_state_publisher)"/>
+  </include>
+
+  <arg name="usb_port"                default="/dev/$(arg driver_device)"/>
+  <arg name="baud_rate"               default="4000000"/>
+
+  <rosparam file="$(find shutter_hardware_interface)/config/position_controllers.yaml" command="load"/>
+  <param name="dynamixel_info" value="$(find shutter_hardware_interface)/config/dynamixel_joints_position.yaml"/>
+
+  <!-- Load the controllers -->
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+  output="screen" args="joint_group_controller "/>
+
+  <node name="shutter_position_interface" pkg="shutter_hardware_interface" type="shutter_position_node"
+        output="screen" args="$(arg usb_port) $(arg baud_rate)">
+    <param name="use_joint_states_topic"  value="true"/>
+    <remap from="shutter_position_interface/joint_states" to="joint_states" />
+  </node>
+
+  <group if="$(arg run_rosbridge)">
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+      <arg name="port" value="5555"/>
+      <arg name="topics_glob" default="[/joint_*/command]"/>
+      <arg name="services_glob" default=""/>
+      <arg name="params_glob" default=""/>
     </include>
+  </group>
 
-    <include file="$(find shutter_face_ros)/launch/simple_face.launch">
-        <arg name="blink" value="$(arg blink)"/>
-        <arg name="limit_pupils" value="$(arg limit_pupils)"/>
-        <arg name="move_to_shutter_screen" value="$(arg move_to_shutter_screen)"/>
-        <arg name="screen_version" value="$(arg screen_version)"/>
-        <arg name="simulation" value="$(arg simulation)"/>
-        <arg name="display_id" value="$(arg display_id)"/>
-    </include>
 
-    <!-- Include azure_kinect_ros_driver launch file with a unique namespace -->
-    <group ns="azure_kinect">
-        <include file="$(find azure_kinect_ros_driver)/launch/driver.launch">
-            <arg name="body_tracking_enabled" value="true" />
-            <arg name="overwrite_robot_description" value="false" />
-        </include>
-    </group>
-
-    
-    <include file="$(find realsense2_camera)/launch/rs_camera.launch">
-        <!-- Add any required arguments here if needed -->
-    </include>
-
-    
+  <include file="$(find shutter_face_ros)/launch/simple_face.launch">
+      <arg name="blink" value="$(arg blink)"/>
+      <arg name="limit_pupils" value="$(arg limit_pupils)"/>
+      <arg name="move_to_shutter_screen" value="$(arg move_to_shutter_screen)"/>
+      <arg name="screen_version" value="$(arg screen_version)"/>
+      <arg name="simulation" value="$(arg simulation)"/>
+      <arg name="display_id" value="$(arg display_id)"/>
+  </include>
+  <!---->
 
 </launch>
