@@ -15,7 +15,24 @@ catkin_make -DCMAKE_BUILD_TYPE=Release
 source devel/setup.bash
 ```
 
-### Run Shutter Gesture Control
+
+### Run Shutter Gesture Control (with launch file)
+```
+# start ROS Master
+roscore
+
+# start realsense camera
+roslaunch realsense2_camera rs_camera.launch
+
+# run launch file
+roslaunch shutter-gesture-control shutter_gesture_control.launch
+
+# run control script
+rosrun shutter_gesture_control gesture_control.py
+```
+
+
+### Run Shutter Gesture Control (without launch file)
 More documentations: https://shutter-ros.readthedocs.io/en/latest/packages/shutter_bringup.html.
 ```
 # start ROS Master
